@@ -53,36 +53,104 @@
 
 ### Signal one — the model signal
 
-**What it measures:**
+**What it measures:** How predictable gpt2 finds the text (perplexity), squashed
+to 0–1. Higher means more AI-like. `detector.py::model_signal`, given.
 
-**Why that might differ between human and AI writing:**
+**Why that might differ between human and AI writing:** A language model writes
+by picking likely next words, so its output is text a model finds likely.
+People pick odd words, turn abruptly, and name specific things.
 
-**What it can't see:**
+**What it can't see:** Predictable is not the same as machine-written. It
+rewards common words in short ordinary sentences, so plain human writing scores
+as machine-like: my plain paragraph about walking a dog scored 0.874, against
+0.898 for a paragraph of AI-style prose. It also reads only the first 400
+tokens, and ornate prose full of rare words reads as human.
 
 ### Signal two — the style signal
 
-**What it measures:**
+**What it measures:** The shape of the text, three measures combined into 0–1
+(higher means more AI-like). `stylometry.py::style_signal`.
 
-**Why that might differ between human and AI writing:**
+| Measure | What it is | Counts as AI-like when | Weight |
+|---|---|---|---|
+| Sentence-length spread | stdev / mean of words per sentence | below 0.20 → 1.0, above 0.70 → 0.0 | 0.5 |
+| Type-token ratio | unique / total words, averaged over 50-word windows so length doesn't masquerade as signal | below 0.65 → 1.0, above 0.90 → 0.0 | 0.2 |
+| Distinctive punctuation | `; : ( ) " ! ? … —` per 100 words (commas and full stops left out on purpose) | 0 → 1.0, 4 or more → 0.0 | 0.3 |
 
-**What it can't see:**
+A one-sentence text has no spread, so that measure is dropped and the other two
+are re-weighted instead of treating "no evidence" as "machine-like".
+
+**Why that might differ between human and AI writing:** Repeating "most likely
+next word" tends to produce even, mid-length sentences and a narrow vocabulary.
+Human writing is lumpier: a three-word sentence next to a forty-word one.
+
+**What it can't see:** Anything about meaning. It reads shape only, so it is
+moved by anything that changes shape without changing substance: typos,
+chopped or joined sentences, a pasted quotation. It also shares signal one's
+blind spot on plain writing: that same dog paragraph scored 0.944, the most
+AI-like of anything I tried, because its sentences are even and it uses no
+distinctive punctuation. And it reads uniform formal prose as AI (below).
+
+**These bounds were set by eye, from seven inputs I wrote myself.** They are a
+starting point, not a calibration.
 
 ### The combining rule
 
-<!-- Write the rule in words, then give the numbers. What happens when the two
-     signals disagree? -->
+**The rule:** Average the two signals with equal weight. If they are more than
+0.35 apart, cap the result at 0.60. The cap only lowers a score, and it sits
+inside the unsure band, so a split between the signals can produce "unsure"
+but never "high-confidence AI". Nothing mirrors it on the human side: wrongly
+clearing AI text is the cheap error and wrongly accusing a writer is the
+expensive one, so a disagreement never pushes a score toward AI.
 
-**The rule:**
-
-**The numbers:**
+**The numbers:** `WEIGHT_MODEL_SIGNAL = 0.5`, `WEIGHT_STYLE_SIGNAL = 0.5`,
+`SPLIT_GAP = 0.35`, `SPLIT_CAP = 0.60`, all in `config.py`. Equal weights
+because I have no evidence yet that either signal deserves more trust.
 
 **Where it lives:** `scoring.py::combine_signals`
 
 <!-- ⚠️ The grader checks your code against that line. If your rule lives
      somewhere else, say where. -->
 
-**A case where my two signals split, and what my rule does with it:**
+**The calibration run.** `python calibration.py` runs both signals on seven
+inputs I wrote as stand-ins (`calibration.py`). Scores are 0–1, higher = more
+AI:
 
+| Input | model | style | combined |
+|---|---|---|---|
+| clear_ai | 0.898 | 0.904 | 0.901 |
+| clear_human | 0.219 | 0.132 | 0.175 |
+| plain_human | 0.874 | 0.944 | 0.909 |
+| formal_human | 0.382 | 0.151 | 0.266 |
+| edited_ai | 0.526 | 0.348 | 0.437 |
+| even_formal | 0.156 | 0.880 | 0.518 |
+| varied_ai | 0.466 | 0.033 | 0.250 |
+
+Clearly-AI and clearly-human text land 0.73 apart (0.901 and 0.175), and
+formal human prose lands low at 0.266, so the signals do separate the easy
+cases. Two rows are bad:
+
+- **plain_human scores 0.909, slightly above clear_ai at 0.901.** Both signals
+  agree, so no combining rule can fix it. Under any threshold that labels
+  clear_ai as AI, this paragraph a person wrote is labelled AI too. At the
+  moment I can't meet criterion 1 (no false positives) with these two signals.
+- **edited_ai scores 0.437 and varied_ai scores 0.250.** The edited AI text
+  drifts toward the middle, and the AI-written text with varied sentences and
+  distinctive punctuation looks human to the style signal. Both are the cheap
+  error for the site, but they're the evasions unit 8 will probe.
+
+**A case where my two signals split, and what my rule does with it:**
+`even_formal`, a paragraph in a formal, old-fashioned register with six
+sentences of almost equal length. Signal one reads it as human (0.156, rare
+words that gpt2 can't predict) while signal two reads it as AI (0.880, uniform
+sentence lengths and no distinctive punctuation), a gap of 0.72. The average is
+0.518, which is already below the 0.60 cap, so the cap does nothing here and the
+result is a plain 0.518: "unsure", the honest outcome when two methods disagree
+this much. **No input I tried actually triggers the cap.** It only fires when
+the average is above 0.60 with a gap over 0.35 (for example 0.95 and 0.55, which
+the function turns into 0.60), and I checked that by calling the function
+directly rather than from real text. I kept it because it states the policy
+(a split can't accuse), but it is unproven on real data.
 
 
 ---

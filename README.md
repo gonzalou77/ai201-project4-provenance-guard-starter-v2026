@@ -164,14 +164,31 @@ directly rather than from real text. I kept it because it states the policy
 
 | Label | Score range | The exact text a reader sees |
 |---|---|---|
-| high-confidence human |  |  |
-| unsure |  |  |
-| high-confidence AI |  |  |
+| high-confidence human | 0.00 – 0.35 | We think this was probably written by a person. |
+| unsure | 0.35 – 0.75 | We can't tell whether this was written by a person or with an AI tool. That isn't a judgement against you: plain, simple writing and some formal styles look like this to our checks. If you'd like, you can ask for a person to take a look. |
+| high-confidence AI | 0.75 – 1.00 | This looks like it may have been written with an AI tool. We can't be sure, and we get this wrong, especially with plain, short-sentence writing. If you wrote it yourself, you can appeal and a person will read your reasoning. |
 
-**Why I worded the "unsure" one this way:**
-<!-- It's the hardest of the three. It has to admit uncertainty without
-     sounding like an accusation, because the person reading it may well have
-     written every word themselves. -->
+The ranges come from `config.py` (`HUMAN_THRESHOLD = 0.35`, `AI_THRESHOLD =
+0.75`) and are printed by `scoring.label_ranges()`. The text is in
+`scoring.py` (`LABEL_HUMAN`, `LABEL_UNSURE`, `LABEL_AI`). I raised
+`AI_THRESHOLD` from the starter's 0.65 because accusing a real writer costs far
+more than missing some AI text.
+
+**All three are reachable.** Submitting the calibration inputs through
+`POST /submit` gave `clear_human` → human (0.1754), `even_formal` → unsure
+(0.5182) and `clear_ai` → ai (0.9009).
+
+**Why I worded the "unsure" one this way:** It's the label a real writer is
+most likely to read, so it opens with what we *don't* know, not with what we
+suspect. It says "that isn't a judgement against you" before explaining why,
+and the reason it gives is about our checks, which look at the shape of the
+writing, not about the person. It never says "AI-generated" or "flagged".
+"You can ask for a person to take a look" gives the reader something to do
+rather than something to absorb. The high-confidence AI label follows the same
+rules (it says "may have been", admits "we get this wrong", and names plain
+short-sentence writing as the case it gets wrong most), because with my current
+signals a person who wrote every word can still land there. That is not a
+hypothetical: see the sample run below.
 
 
 
@@ -189,114 +206,94 @@ directly rather than from real text. I kept it because it states the policy
      two off the response, so leaving them out costs you next unit's
      diagnostics. -->
 
-*Milestone 3 state: one signal wired in. `guess`, `confidence` and `label` are
-placeholders, and `style_score` is `null` until Milestone 4. Run on port 5055
-because another `app.py` was already on 5000.*
-
-A plain paragraph I wrote about a walk with my dog:
+*Run on port 5055 because another `app.py` was already on 5000. The text is a
+plain paragraph I wrote about a walk with my dog, the kind of writing the
+design says gets wrongly accused. The command below shows the body inline; I
+actually sent it with `-d @plain_human.json`, a file generated from
+`calibration.py`'s `plain_human` input, to avoid shell-quoting mistakes. The
+text is identical.*
 
 ```bash
 $ curl -X POST http://127.0.0.1:5055/submit \
   -H "Content-Type: application/json" \
-  -d '{"text": "I went to the park with my dog on Saturday. The weather was nice and the sun was out. We walked for about an hour and then sat on a bench. My dog likes to chase the ducks by the pond. After that we went home and I made lunch. It was a good day and I was happy.", "creator_id": "demo-human"}'
+  -d '{"text": "I went to the park with my dog on Saturday. The weather was nice and the sun was out. We walked for about an hour and then sat on a bench. My dog likes to chase the ducks by the pond. After that we went home and I made lunch. It was a good day and I was happy.", "creator_id": "demo-plain_human"}'
 ```
 
 ```json
 {
-  "confidence": 0.5,
-  "content_id": "b2264830-1ede-4f86-815e-a5975fcccf8e",
-  "guess": "unsure",
-  "label": "PLACEHOLDER — not scored yet.",
-  "model_score": 0.8743,
-  "status": "decided",
-  "style_score": null
+    "appeal": "POST /appeal with this content_id",
+    "combined_score": 0.9091,
+    "confidence": 0.9091,
+    "content_id": "1d8bb36e-e070-4854-8b1c-2dd488c6b2a0",
+    "guess": "ai",
+    "label": "This looks like it may have been written with an AI tool. We can't be sure, and we get this wrong, especially with plain, short-sentence writing. If you wrote it yourself, you can appeal and a person will read your reasoning.",
+    "model_score": 0.8743,
+    "status": "decided",
+    "style_score": 0.944
 }
 ```
 
-That `model_score` of 0.8743 is on a paragraph a person wrote. Signal one alone
-scores plain writing as machine-like, which is the blind spot DESIGN.md names.
-A machine-sounding paragraph ("The implementation of the proposed framework
-requires careful consideration of several key factors…") scored 0.8864 through
-the same route, so the two are barely separated.
-
-Bad input is refused and logged rather than crashing:
-
-```bash
-$ curl -X POST http://127.0.0.1:5055/submit -H "Content-Type: application/json" -d '{"text": "too short", "creator_id": "demo"}'
-```
-
-```json
-{"error":"text_too_short","message":"text needs at least 20 words to be read."}
-```
+**This is a false positive, on purpose.** A person wrote that paragraph and the
+service called it high-confidence AI, because both signals read short plain
+sentences as machine-like. It is the case DESIGN.md predicted, and I kept it as
+the sample so the appeal has something real to do.
 
 **An appeal**
 
 ```bash
-$ curl -X POST http://127.0.0.1:5000/appeal \
+$ curl -X POST http://127.0.0.1:5055/appeal \
   -H "Content-Type: application/json" \
-  -d '{"content_id": "...", "reasoning": "..."}'
-```
-
-```json
-
-```
-
-**What the log shows afterwards**
-
-```bash
-$ curl "http://127.0.0.1:5055/log?limit=5"
+  -d '{"content_id": "1d8bb36e-e070-4854-8b1c-2dd488c6b2a0", "reasoning": "I wrote this myself, about a walk with my dog last weekend. English is my second language, so I keep my sentences short."}'
 ```
 
 ```json
 {
-  "count": 5,
+    "content_id": "1d8bb36e-e070-4854-8b1c-2dd488c6b2a0",
+    "message": "Your appeal is recorded and a person will read it. Nothing has been re-scored, and the original decision stays in the record.",
+    "status": "under_review"
+}
+```
+
+An appeal with an id that doesn't exist is refused (404, `unknown_content_id`)
+and logged, and one with empty reasoning gets a 400. Neither changes any status.
+
+**What the log shows afterwards**
+
+The log is append-only, so the original decision is unchanged and the appeal sits
+after it. Both entries for that `content_id`, from
+`curl http://127.0.0.1:5055/log` filtered to it:
+
+```json
+{
+  "count": 2,
   "entries": [
     {
-      "combined_score": null,
-      "content_id": "1648283c-2fae-4415-a03f-debdf7d89c43",
-      "creator_id": "demo-ai",
-      "guess": "unsure",
-      "label": "PLACEHOLDER — not scored yet.",
-      "model_score": 0.8864,
-      "status": "decided",
-      "style_score": null,
-      "timestamp": "2026-10-28T22:32:25+00:00"
-    },
-    {
-      "combined_score": null,
-      "content_id": "b2264830-1ede-4f86-815e-a5975fcccf8e",
-      "creator_id": "demo-human",
-      "guess": "unsure",
-      "label": "PLACEHOLDER — not scored yet.",
+      "combined_score": 0.9091,
+      "content_id": "1d8bb36e-e070-4854-8b1c-2dd488c6b2a0",
+      "creator_id": "demo-plain_human",
+      "guess": "ai",
+      "label": "This looks like it may have been written with an AI tool. We can't be sure, and we get this wrong, especially with plain, short-sentence writing. If you wrote it yourself, you can appeal and a person will read your reasoning.",
       "model_score": 0.8743,
       "status": "decided",
-      "style_score": null,
-      "timestamp": "2026-10-28T22:32:26+00:00"
+      "style_score": 0.944,
+      "timestamp": "2026-10-28T22:40:14+00:00"
     },
     {
-      "creator_id": "demo",
-      "event": "rejected",
-      "reason": "text_too_short",
-      "status": "rejected",
-      "timestamp": "2026-10-28T22:32:26+00:00"
-    },
-    {
-      "creator_id": "unknown",
-      "event": "rejected",
-      "reason": "invalid_request",
-      "status": "rejected",
-      "timestamp": "2026-10-28T22:32:26+00:00"
-    },
-    {
-      "creator_id": "unknown",
-      "event": "rejected",
-      "reason": "invalid_request",
-      "status": "rejected",
-      "timestamp": "2026-10-28T22:32:26+00:00"
+      "content_id": "1d8bb36e-e070-4854-8b1c-2dd488c6b2a0",
+      "creator_id": "demo-plain_human",
+      "event": "appeal",
+      "reasoning": "I wrote this myself, about a walk with my dog last weekend. English is my second language, so I keep my sentences short.",
+      "status": "under_review",
+      "timestamp": "2026-10-28T22:40:14+00:00"
     }
   ]
 }
 ```
+
+The `status` on the original entry still says `decided`, and the appeal entry
+carries `under_review`. The item's current status is the status of its latest
+entry. The appeal only records. It doesn't re-score or change the label the
+writer was shown.
 
 ---
 

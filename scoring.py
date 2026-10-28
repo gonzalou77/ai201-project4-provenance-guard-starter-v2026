@@ -78,6 +78,27 @@ def combine_signals(model_score: float, style_score: float) -> float:
     return round(min(max(score, 0.0), 1.0), 4)
 
 
+# What a writer actually reads. None of it says "score" or "threshold", and the
+# two that could land on someone who wrote every word themselves say so: the
+# checks are wrong sometimes, they're wrong most often on plain writing, and
+# there is a person to ask.
+LABEL_HUMAN = "We think this was probably written by a person."
+
+LABEL_UNSURE = (
+    "We can't tell whether this was written by a person or with an AI tool. "
+    "That isn't a judgement against you: plain, simple writing and some "
+    "formal styles look like this to our checks. If you'd like, you can ask "
+    "for a person to take a look."
+)
+
+LABEL_AI = (
+    "This looks like it may have been written with an AI tool. We can't be "
+    "sure, and we get this wrong, especially with plain, short-sentence "
+    "writing. If you wrote it yourself, you can appeal and a person will read "
+    "your reasoning."
+)
+
+
 def score_to_label(score: float) -> tuple[str, str]:
     """
     Turn a score into a guess and the text a reader actually sees.
@@ -104,12 +125,11 @@ def score_to_label(score: float) -> tuple[str, str]:
     think if they got it on their own work. That question is the whole
     milestone.
     """
-    # TODO: replace this — thresholds are in config.py
     if score >= config.AI_THRESHOLD:
-        return "ai", "PLACEHOLDER — write the high-confidence AI label."
+        return "ai", LABEL_AI
     if score <= config.HUMAN_THRESHOLD:
-        return "human", "PLACEHOLDER — write the high-confidence human label."
-    return "unsure", "PLACEHOLDER — write the unsure label."
+        return "human", LABEL_HUMAN
+    return "unsure", LABEL_UNSURE
 
 
 def label_ranges() -> list[tuple[str, str]]:

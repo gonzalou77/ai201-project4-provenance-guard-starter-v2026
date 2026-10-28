@@ -51,6 +51,7 @@ DETECTOR_MAX_TOKENS = 400
 MIN_TEXT_WORDS = 20
 MAX_TEXT_CHARS = 50_000
 MAX_CREATOR_ID_CHARS = 128
+MAX_REASONING_CHARS = 2_000
 
 
 # ─── Scoring (Milestone 4) ───────────────────────────────────────────────────
@@ -91,7 +92,10 @@ STYLE_WEIGHT_PUNCT = 0.3
 # that decide who pays for it.
 
 HUMAN_THRESHOLD = 0.35
-AI_THRESHOLD = 0.65
+# Raised from the starter's 0.65 (DESIGN.md, "The false positive"): calling a
+# real writer AI costs far more than missing some AI text. It stays above
+# SPLIT_CAP, so a split between the signals can never reach it.
+AI_THRESHOLD = 0.75
 
 # ⚠️ One thing that catches people out in Milestone 5. A weighted average can
 # only land between its two inputs — so while `style_signal` is still the stub

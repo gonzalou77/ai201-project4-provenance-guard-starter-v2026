@@ -121,14 +121,44 @@
      two off the response, so leaving them out costs you next unit's
      diagnostics. -->
 
+*Milestone 3 state: one signal wired in. `guess`, `confidence` and `label` are
+placeholders, and `style_score` is `null` until Milestone 4. Run on port 5055
+because another `app.py` was already on 5000.*
+
+A plain paragraph I wrote about a walk with my dog:
+
 ```bash
-$ curl -X POST http://127.0.0.1:5000/submit \
+$ curl -X POST http://127.0.0.1:5055/submit \
   -H "Content-Type: application/json" \
-  -d '{"text": "...", "creator_id": "..."}'
+  -d '{"text": "I went to the park with my dog on Saturday. The weather was nice and the sun was out. We walked for about an hour and then sat on a bench. My dog likes to chase the ducks by the pond. After that we went home and I made lunch. It was a good day and I was happy.", "creator_id": "demo-human"}'
 ```
 
 ```json
+{
+  "confidence": 0.5,
+  "content_id": "b2264830-1ede-4f86-815e-a5975fcccf8e",
+  "guess": "unsure",
+  "label": "PLACEHOLDER — not scored yet.",
+  "model_score": 0.8743,
+  "status": "decided",
+  "style_score": null
+}
+```
 
+That `model_score` of 0.8743 is on a paragraph a person wrote. Signal one alone
+scores plain writing as machine-like, which is the blind spot DESIGN.md names.
+A machine-sounding paragraph ("The implementation of the proposed framework
+requires careful consideration of several key factors…") scored 0.8864 through
+the same route, so the two are barely separated.
+
+Bad input is refused and logged rather than crashing:
+
+```bash
+$ curl -X POST http://127.0.0.1:5055/submit -H "Content-Type: application/json" -d '{"text": "too short", "creator_id": "demo"}'
+```
+
+```json
+{"error":"text_too_short","message":"text needs at least 20 words to be read."}
 ```
 
 **An appeal**
@@ -146,11 +176,58 @@ $ curl -X POST http://127.0.0.1:5000/appeal \
 **What the log shows afterwards**
 
 ```bash
-$ curl "http://127.0.0.1:5000/log?limit=3"
+$ curl "http://127.0.0.1:5055/log?limit=5"
 ```
 
 ```json
-
+{
+  "count": 5,
+  "entries": [
+    {
+      "combined_score": null,
+      "content_id": "1648283c-2fae-4415-a03f-debdf7d89c43",
+      "creator_id": "demo-ai",
+      "guess": "unsure",
+      "label": "PLACEHOLDER — not scored yet.",
+      "model_score": 0.8864,
+      "status": "decided",
+      "style_score": null,
+      "timestamp": "2026-10-28T22:32:25+00:00"
+    },
+    {
+      "combined_score": null,
+      "content_id": "b2264830-1ede-4f86-815e-a5975fcccf8e",
+      "creator_id": "demo-human",
+      "guess": "unsure",
+      "label": "PLACEHOLDER — not scored yet.",
+      "model_score": 0.8743,
+      "status": "decided",
+      "style_score": null,
+      "timestamp": "2026-10-28T22:32:26+00:00"
+    },
+    {
+      "creator_id": "demo",
+      "event": "rejected",
+      "reason": "text_too_short",
+      "status": "rejected",
+      "timestamp": "2026-10-28T22:32:26+00:00"
+    },
+    {
+      "creator_id": "unknown",
+      "event": "rejected",
+      "reason": "invalid_request",
+      "status": "rejected",
+      "timestamp": "2026-10-28T22:32:26+00:00"
+    },
+    {
+      "creator_id": "unknown",
+      "event": "rejected",
+      "reason": "invalid_request",
+      "status": "rejected",
+      "timestamp": "2026-10-28T22:32:26+00:00"
+    }
+  ]
+}
 ```
 
 ---

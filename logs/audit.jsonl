@@ -1,0 +1,5 @@
+{"timestamp": "2026-10-28T22:32:25+00:00", "content_id": "1648283c-2fae-4415-a03f-debdf7d89c43", "creator_id": "demo-ai", "guess": "unsure", "model_score": 0.8864, "style_score": null, "combined_score": null, "label": "PLACEHOLDER — not scored yet.", "status": "decided"}
+{"timestamp": "2026-10-28T22:32:26+00:00", "content_id": "b2264830-1ede-4f86-815e-a5975fcccf8e", "creator_id": "demo-human", "guess": "unsure", "model_score": 0.8743, "style_score": null, "combined_score": null, "label": "PLACEHOLDER — not scored yet.", "status": "decided"}
+{"timestamp": "2026-10-28T22:32:26+00:00", "creator_id": "demo", "event": "rejected", "status": "rejected", "reason": "text_too_short"}
+{"timestamp": "2026-10-28T22:32:26+00:00", "creator_id": "unknown", "event": "rejected", "status": "rejected", "reason": "invalid_request"}
+{"timestamp": "2026-10-28T22:32:26+00:00", "creator_id": "unknown", "event": "rejected", "status": "rejected", "reason": "invalid_request"}

@@ -31,6 +31,7 @@ from flask import Flask, jsonify, request
 import audit
 import config
 import detector
+import scoring
 import stylometry
 
 app = Flask(__name__)
@@ -243,17 +244,22 @@ def submit():
         return _refuse(503, "detector_unavailable", who,
                        "The reader model isn't available right now.", detail=str(exc))
 
-    # Milestone 3: guess, confidence and label are placeholders until
-    # Milestones 4 and 5. They are logged as placeholders too, not as verdicts.
+    style_score = stylometry.style_signal(text)
+    combined_score = scoring.combine_signals(model_score, style_score)
+
+    # guess and label are placeholders until Milestone 5 (thresholds and
+    # wording). They are logged as placeholders too, not as verdicts.
     guess = "unsure"
-    confidence = 0.5
-    label = "PLACEHOLDER — not scored yet."
+    label = "PLACEHOLDER — not labelled yet."
+    confidence = round(max(combined_score, 1 - combined_score), 4)
 
     audit.log_decision(
         content_id=content_id,
         creator_id=creator_id,
         guess=guess,
         model_score=model_score,
+        style_score=style_score,
+        combined_score=combined_score,
         label=label,
         status="decided",
     )
@@ -263,7 +269,8 @@ def submit():
         "confidence": confidence,
         "label": label,
         "model_score": model_score,
-        "style_score": None,
+        "style_score": style_score,
+        "combined_score": combined_score,
         "status": "decided",
     })
 

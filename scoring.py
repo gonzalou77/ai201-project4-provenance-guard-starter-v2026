@@ -49,14 +49,33 @@ def combine_signals(model_score: float, style_score: float) -> float:
       - Milestone 4 asks you to find a case where your two signals split and
         write it down. That case is what this rule exists to handle.
 
-    The weights in config.py are placeholders. Change them, or ignore them and
-    write a different rule.
+    ── The rule (written before the code) ────────────────────────────────────
+
+    1. Weighted average: 0.5 * model + 0.5 * style. I have no evidence yet that
+       either signal is the more trustworthy one, so neither is favoured.
+    2. If the two signals are more than SPLIT_GAP (0.35) apart, cap the result
+       at SPLIT_CAP (0.60). The cap only ever lowers a score.
+
+    Why the cap: the two signals have different blind spots, so when they split
+    one of them is probably in its blind spot. An accusation should not rest on
+    one signal. 0.60 sits inside the unsure band, so a split can produce
+    "unsure" but never the high-confidence AI label.
+
+    Why only one way: wrongly clearing AI text is the cheap error and wrongly
+    accusing a writer is the expensive one (see criteria.md), so a split never
+    pushes a score *toward* AI and nothing mirrors the cap for the human side.
+
+    What it can't fix: if both signals are wrong in the same direction the
+    average is wrong too, and the cap never fires. Plain human writing is
+    exactly that case (see DESIGN.md and the calibration table in README).
     """
-    # TODO: replace this
-    return (
+    score = (
         config.WEIGHT_MODEL_SIGNAL * model_score
         + config.WEIGHT_STYLE_SIGNAL * style_score
     )
+    if abs(model_score - style_score) > config.SPLIT_GAP:
+        score = min(score, config.SPLIT_CAP)
+    return round(min(max(score, 0.0), 1.0), 4)
 
 
 def score_to_label(score: float) -> tuple[str, str]:

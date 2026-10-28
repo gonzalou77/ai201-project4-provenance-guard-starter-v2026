@@ -63,6 +63,19 @@ MAX_CREATOR_ID_CHARS = 128
 WEIGHT_MODEL_SIGNAL = 0.5
 WEIGHT_STYLE_SIGNAL = 0.5
 
+# When the two signals are further apart than SPLIT_GAP, the combined score is
+# capped at SPLIT_CAP. SPLIT_CAP must sit below AI_THRESHOLD: the point is that
+# a split can never, by itself, produce the high-confidence AI label.
+SPLIT_GAP = 0.35
+SPLIT_CAP = 0.60
+
+# Inside the style signal: how much each of its three measures counts.
+# Sentence-length spread did most of the separating on the calibration inputs;
+# type-token ratio did the least, so it gets the least.
+STYLE_WEIGHT_SPREAD = 0.5
+STYLE_WEIGHT_TTR = 0.2
+STYLE_WEIGHT_PUNCT = 0.3
+
 
 # ─── Thresholds (Milestone 5) ────────────────────────────────────────────────
 # Where one label becomes another. Scores run 0.0 (confidently human) to 1.0

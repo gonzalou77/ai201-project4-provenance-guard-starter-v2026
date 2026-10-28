@@ -33,6 +33,8 @@ anything together:
 import re
 import statistics
 
+import config
+
 
 def sentences(text: str) -> list[str]:
     """Split into sentences. Rough and good enough — given to you."""
@@ -49,53 +51,59 @@ def words(text: str) -> list[str]:
 
 def sentence_length_spread(text: str) -> float:
     """
-    How much sentence length varies. ← TODO
+    How much sentence length varies: stdev / mean of words per sentence (the
+    coefficient of variation). Raw scale, 0 upward; **higher means more
+    human**. Roughly 0.2 is a text that marches in step, 0.7+ is lumpy.
 
-    Returns:
-        A float. Decide yourself what scale it's on and which direction means
-        "more human" — then write that down, because your combining rule
-        depends on knowing it.
-
-    A hint on what you're reaching for: the standard deviation of sentence
-    lengths, probably divided by the mean so a long text and a short one are
-    comparable. `statistics.stdev` is imported for you.
-
-    Watch the edge case: a one-sentence submission has no spread at all, and
-    `stdev` raises on fewer than two values. Decide what that should return
-    before the attack set decides for you.
+    A single sentence has no spread, so it returns 0.0 — and `style_signal`
+    treats that as "no evidence" rather than "machine-like".
     """
-    # TODO: replace this
-    return 0.0
+    lengths = [len(words(s)) for s in sentences(text)]
+    lengths = [n for n in lengths if n > 0]
+    if len(lengths) < 2:
+        return 0.0
+    return statistics.stdev(lengths) / statistics.mean(lengths)
+
+
+TTR_WINDOW = 50
 
 
 def type_token_ratio(text: str) -> float:
     """
-    Unique words over total words. ← TODO
+    Unique words over total words, 0–1; **higher means more varied vocabulary,
+    more human**.
 
-    Returns:
-        A float between 0 and 1. Higher means more varied vocabulary.
-
-    Worth knowing before you rely on it: this measure falls as text gets
-    longer, because common words repeat. Two texts of different lengths aren't
-    directly comparable on it, and if your test inputs vary a lot in length,
-    that alone can look like a signal.
+    Raw type-token ratio falls as text gets longer, so a long text and a short
+    one aren't comparable. This averages it over sliding windows of
+    `TTR_WINDOW` words instead, so length stops looking like a signal. Text
+    shorter than one window is measured whole.
     """
-    # TODO: replace this
-    return 0.0
+    tokens = words(text)
+    if not tokens:
+        return 0.0
+    if len(tokens) <= TTR_WINDOW:
+        return len(set(tokens)) / len(tokens)
+    ratios = [
+        len(set(tokens[i:i + TTR_WINDOW])) / TTR_WINDOW
+        for i in range(0, len(tokens) - TTR_WINDOW + 1, 10)
+    ]
+    return sum(ratios) / len(ratios)
+
+
+# The marks that vary most between writers. Commas and full stops are left out
+# on purpose: nearly everyone uses them at nearly the same rate.
+_DISTINCTIVE_PUNCT = re.compile(r"[;:()\"!?…—–]|--")
 
 
 def punctuation_density(text: str) -> float:
     """
-    How much punctuation, relative to length. ← TODO
-
-    Returns:
-        A float. Whether you count all punctuation or only some kinds — commas,
-        semicolons, dashes — is a real choice. Semicolons and em dashes are
-        more interesting than full stops, because they vary more between
-        writers.
+    Distinctive punctuation (semicolons, colons, brackets, quotes, ! ? …,
+    dashes) per 100 words. Raw scale, 0 upward; **higher means more human**.
     """
-    # TODO: replace this
-    return 0.0
+    n_words = len(words(text))
+    if n_words == 0:
+        return 0.0
+    return 100 * len(_DISTINCTIVE_PUNCT.findall(text)) / n_words
 
 
 # ── Combining them ───────────────────────────────────────────────────────────
@@ -122,8 +130,39 @@ def style_signal(text: str) -> float:
     you trust it. Plain and ordinary, not formal: formal prose reads as *human*
     to signal one, and it is plain writing that gets accused.
     """
-    # TODO: replace this
-    return 0.5
+    sents = [s for s in sentences(text) if words(s)]
+
+    # Each measure becomes an AI-ness score in 0–1 by a straight line between
+    # two bounds: at or beyond the "human" bound it scores 0, at or beyond the
+    # "AI" bound it scores 1. All three are flipped, because for each of them
+    # a HIGH raw value means more human.
+    #
+    # ⚠️ The bounds were set by looking at five hand-written calibration inputs
+    # (calibration.py), not at a real corpus. They are a starting point.
+    parts = {
+        "punct": _ramp(punctuation_density(text), human=4.0, ai=0.0),
+        "ttr": _ramp(type_token_ratio(text), human=0.90, ai=0.65),
+    }
+    weights = {
+        "spread": config.STYLE_WEIGHT_SPREAD,
+        "ttr": config.STYLE_WEIGHT_TTR,
+        "punct": config.STYLE_WEIGHT_PUNCT,
+    }
+    # One sentence has no spread to measure. Say nothing about it rather than
+    # let "no evidence" read as "machine-like": drop it and re-weight the rest.
+    if len(sents) >= 2:
+        parts["spread"] = _ramp(sentence_length_spread(text), human=0.70, ai=0.20)
+    else:
+        del weights["spread"]
+
+    total = sum(weights.values())
+    score = sum(weights[k] * parts[k] for k in weights) / total
+    return round(min(max(score, 0.0), 1.0), 4)
+
+
+def _ramp(value: float, human: float, ai: float) -> float:
+    """Straight line from 0 at `human` to 1 at `ai`, clamped. Either order."""
+    return min(max((value - human) / (ai - human), 0.0), 1.0)
 
 
 if __name__ == "__main__":
@@ -139,4 +178,3 @@ if __name__ == "__main__":
     print(f"type_token_ratio         {type_token_ratio(text)}")
     print(f"punctuation_density      {punctuation_density(text)}")
     print(f"style_signal             {style_signal(text)}   (higher = more likely AI)")
-    print("\nAll zeros? These are stubs — Milestone 4 is where you build them.")

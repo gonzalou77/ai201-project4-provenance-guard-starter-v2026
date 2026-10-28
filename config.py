@@ -47,6 +47,12 @@ DETECTOR_MODEL = os.getenv("AI201_DETECTOR_MODEL", "gpt2")
 DETECTOR_MAX_TOKENS = 400
 
 
+# ─── Input limits (see DESIGN.md, "The contract") ────────────────────────────
+MIN_TEXT_WORDS = 20
+MAX_TEXT_CHARS = 50_000
+MAX_CREATOR_ID_CHARS = 128
+
+
 # ─── Scoring (Milestone 4) ───────────────────────────────────────────────────
 # How much each signal counts toward the combined score.
 #

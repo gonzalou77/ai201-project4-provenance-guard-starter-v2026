@@ -30,6 +30,8 @@ from flask import Flask, jsonify, request
 
 import audit
 import config
+import detector
+import stylometry
 
 app = Flask(__name__)
 
@@ -150,6 +152,16 @@ def health():
 
 # ── YOU BUILD THIS ────────────────────────────────────────────────────────────
 
+def _refuse(status, error, creator_id, message, **extra):
+    """
+    Turn a bad request into a documented 4xx/5xx and leave a trace of it.
+
+    The error shape is the one DESIGN.md promises: {"error": code, "message": ...}.
+    """
+    audit.log_rejection(creator_id=creator_id, reason=error, **extra)
+    return jsonify({"error": error, "message": message}), status
+
+
 @app.post("/submit")
 # @limiter.limit(f"{config.RATE_LIMIT_PER_MINUTE}/minute;{config.RATE_LIMIT_PER_DAY}/day")
 def submit():
@@ -199,17 +211,61 @@ def submit():
     what should this do when `text` is missing, empty, or enormous? A crash on
     a malformed input is one of the most common real failures there is.
     """
-    payload = request.get_json(silent=True) or {}
+    payload = request.get_json(silent=True)
+    if not isinstance(payload, dict):
+        return _refuse(400, "invalid_request", "unknown",
+                       "Send a JSON object with text and creator_id.")
 
-    # TODO: delete this and build the route.
+    text = payload.get("text")
+    creator_id = payload.get("creator_id")
+    creator_ok = (isinstance(creator_id, str) and creator_id.strip() != ""
+                  and len(creator_id) <= config.MAX_CREATOR_ID_CHARS)
+    who = creator_id if creator_ok else "unknown"
+
+    if not isinstance(text, str) or not text.strip():
+        return _refuse(400, "invalid_request", who, "text must be a non-empty string.")
+    if not creator_ok:
+        return _refuse(400, "invalid_request", who,
+                       f"creator_id must be a non-empty string of at most "
+                       f"{config.MAX_CREATOR_ID_CHARS} characters.")
+    if len(text) > config.MAX_TEXT_CHARS:
+        return _refuse(413, "text_too_long", who,
+                       f"text is longer than {config.MAX_TEXT_CHARS} characters.")
+    if len(stylometry.words(text)) < config.MIN_TEXT_WORDS:
+        return _refuse(422, "text_too_short", who,
+                       f"text needs at least {config.MIN_TEXT_WORDS} words to be read.")
+
+    content_id = str(uuid.uuid4())
+
+    try:
+        model_score = detector.model_signal(text)
+    except detector.DetectorUnavailable as exc:
+        return _refuse(503, "detector_unavailable", who,
+                       "The reader model isn't available right now.", detail=str(exc))
+
+    # Milestone 3: guess, confidence and label are placeholders until
+    # Milestones 4 and 5. They are logged as placeholders too, not as verdicts.
+    guess = "unsure"
+    confidence = 0.5
+    label = "PLACEHOLDER — not scored yet."
+
+    audit.log_decision(
+        content_id=content_id,
+        creator_id=creator_id,
+        guess=guess,
+        model_score=model_score,
+        label=label,
+        status="decided",
+    )
     return jsonify({
-        "error": "not_implemented",
-        "message": "POST /submit isn't built yet — see the TODO in app.py.",
-        "you_sent": {
-            "text_length": len(payload.get("text", "")),
-            "creator_id": payload.get("creator_id"),
-        },
-    }), 501
+        "content_id": content_id,
+        "guess": guess,
+        "confidence": confidence,
+        "label": label,
+        "model_score": model_score,
+        "style_score": None,
+        "status": "decided",
+    })
 
 
 @app.post("/appeal")

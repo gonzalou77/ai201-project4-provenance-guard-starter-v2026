@@ -36,9 +36,46 @@
 
 ## What This Does
 
-<!-- The path a submission takes, from arriving to the label a reader sees.
-     Six or seven steps — this is the trace you wrote in Milestone 1. -->
+Provenance Guard is a small web service that reads a piece of writing and says
+how likely it is that a person wrote it, in words a writer can understand, with
+a way to appeal if it's wrong. It never says *who* wrote something. It gives a
+guess from two weak signals and admits when it isn't sure.
 
+The path a submission takes, from `POST /submit` to the label a reader sees
+(the full reasoning is in [DESIGN.md](DESIGN.md)):
+
+1. **The gate** (`app.py::submit`). The request must be a JSON object with a
+   `text` of at least 20 words and at most 50,000 characters and a non-empty
+   `creator_id`. Anything else is refused with a 400, 413 or 422 and written to
+   the log as a rejection, so a refusal still leaves a trace.
+2. **An id.** The submission gets a `content_id` (a uuid). It's the only handle
+   `/appeal` has, so it's made before any scoring.
+3. **Signal one, the model signal** (`detector.py::model_signal`). gpt2 runs on
+   this machine and measures how predictable the text is. Output: `model_score`,
+   0–1, higher = more AI-like.
+4. **Signal two, the style signal** (`stylometry.py::style_signal`). Measures
+   the shape of the text: sentence-length spread, vocabulary repetition and
+   distinctive punctuation. Output: `style_score`, 0–1, same direction.
+5. **The combining rule** (`scoring.py::combine_signals`). An equal-weight
+   average of the two scores, capped at 0.60 if they disagree by more than
+   0.35. Output: `combined_score`.
+6. **The label** (`scoring.py::score_to_label`). Turns the combined score into
+   a `guess` (`human`, `unsure` or `ai`) and a plain-language sentence. At or
+   below 0.35 is human, at or above 0.75 is AI, and in between is unsure.
+7. **The record and the reply** (`audit.py::log_decision`). One entry goes to
+   `logs/audit.jsonl` with the timestamp, ids, both signal scores, the combined
+   score, the guess, the label and a status. The response carries the same
+   things back to the caller.
+
+An appeal is a shorter path. `POST /appeal` takes the `content_id` and the
+writer's reasoning, checks the decision exists, appends an `appeal` entry to the
+log with status `under_review`, and confirms. It re-scores nothing and the
+original decision is left in the log untouched.
+
+**What it can't do yet.** Plain, short-sentence writing is read as AI by *both*
+signals, so a person who writes that way can get the high-confidence AI label
+(see the Sample Run, where one does). The label says so and points to the
+appeal, but the underlying problem is the signals, not the wording.
 
 
 ---
@@ -299,17 +336,46 @@ writer was shown.
 
 ## How I Used AI
 
-**Moment 1**
+**Moment 1: the second signal and the combining rule**
 
-- *What I asked for:*
-- *What came back:*
-- *What I changed:*
+- *What I asked for:* A style signal built from sentence-length spread,
+  vocabulary variety and punctuation, and a rule for combining it with the
+  model signal that wouldn't undo my Milestone 1 decision that wrongly accusing
+  a writer is the expensive mistake.
+- *What came back:* Working code for both, including a rule that caps the
+  combined score at 0.60 when the two signals disagree by more than 0.35. Two
+  problems showed up when I ran it. First, on my five calibration inputs the
+  signals agreed everywhere, so there was no case where the disagreement rule
+  could fire, and the cap I'd been handed was untested. Second, the style
+  signal's scaling bounds had been picked while looking at those same five
+  inputs, so it fit them by construction. It also ranked a lightly-edited AI
+  paragraph as the *most* varied text in the set on vocabulary.
+- *What I changed:* I added two inputs on purpose to find a real split
+  (`even_formal`, where the model says human and style says AI, and
+  `varied_ai`, the reverse). The cap still never fires on real text, so the
+  README says it's checked only by calling the function directly. I gave
+  type-token ratio the smallest weight (0.2) because of the edited-AI result,
+  and the README says outright that the bounds were set by eye from seven
+  inputs I wrote myself.
 
-**Moment 2**
+**Moment 2: checking what the AI told me it had pasted**
 
-- *What I asked for:*
-- *What came back:*
-- *What I changed:*
+- *What I asked for:* A real sample run for the README: a submission, an
+  appeal, and the log entries.
+- *What came back:* Output that was correct in substance but not exactly what
+  the server had returned. The first test I ran with a hand-typed request body
+  had lost an apostrophe to shell quoting, so its `model_score` was 0.1288
+  instead of the 0.156 from the calibration table, and the response I was about
+  to paste had a field filled in from the log rather than copied from the
+  server.
+- *What I changed:* I had the request bodies generated straight from
+  `calibration.py` and sent with `curl -d @file`, so the text under test is the
+  text in the repo. I threw out the reconstructed response, ran the submit,
+  the appeal and the log read-back again in one go, and pasted that output.
+  Separately, one of the AI's test commands would have killed every Python
+  process on the machine to restart the server; the tool refused it, and I
+  switched to running my own test server on a different port and stopping
+  only that one.
 
 <!-- ═══════════════════════ UNIT 8 — THE TEST ═══════════════════════ -->
 

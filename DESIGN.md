@@ -169,8 +169,11 @@ places, **higher always means more likely AI**.
 | `style_score` | float | signal two |
 | `combined_score` | float | output of `scoring.combine_signals` |
 | `status` | string | always `"decided"` on this endpoint |
-| `truncated` | bool | true if signal one only read the first part of the text |
 | `appeal` | string | `"POST /appeal with this content_id"` |
+
+*Dropped from the first draft of this contract: a `truncated` flag saying signal
+one only read the first 400 tokens. It wasn't built in unit 7. That blind spot
+is still real and is worth revisiting in unit 8.*
 
 **Errors** (always `{"error": "<code>", "message": "<sentence for a person>"}`;
 each is also written with `audit.log_rejection`)

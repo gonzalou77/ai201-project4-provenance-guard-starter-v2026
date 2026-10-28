@@ -247,10 +247,7 @@ def submit():
     style_score = stylometry.style_signal(text)
     combined_score = scoring.combine_signals(model_score, style_score)
 
-    # guess and label are placeholders until Milestone 5 (thresholds and
-    # wording). They are logged as placeholders too, not as verdicts.
-    guess = "unsure"
-    label = "PLACEHOLDER — not labelled yet."
+    guess, label = scoring.score_to_label(combined_score)
     confidence = round(max(combined_score, 1 - combined_score), 4)
 
     audit.log_decision(
@@ -272,6 +269,7 @@ def submit():
         "style_score": style_score,
         "combined_score": combined_score,
         "status": "decided",
+        "appeal": "POST /appeal with this content_id",
     })
 
 
@@ -295,14 +293,45 @@ def appeal():
     to the person on the other end. It's the only thing standing between a
     wrong accusation and nothing at all.
     """
-    payload = request.get_json(silent=True) or {}
+    payload = request.get_json(silent=True)
+    if not isinstance(payload, dict):
+        return _refuse(400, "invalid_request", "unknown",
+                       "Send a JSON object with content_id and reasoning.")
 
-    # TODO: delete this and build the route.
+    content_id = payload.get("content_id")
+    reasoning = payload.get("reasoning")
+
+    if not isinstance(content_id, str) or not content_id.strip():
+        return _refuse(400, "invalid_request", "unknown",
+                       "content_id must be a non-empty string.")
+    if (not isinstance(reasoning, str) or not reasoning.strip()
+            or len(reasoning) > config.MAX_REASONING_CHARS):
+        return _refuse(400, "invalid_request", "unknown",
+                       f"reasoning must be a non-empty string of at most "
+                       f"{config.MAX_REASONING_CHARS} characters.",
+                       content_id=content_id)
+
+    # An appeal entry carries the same content_id, so look for the DECISION,
+    # not just any entry. A rejection or an earlier appeal doesn't count.
+    decision = next((e for e in audit.entries_for(content_id)
+                     if "event" not in e), None)
+    if decision is None:
+        return _refuse(404, "unknown_content_id", "unknown",
+                       "We have no decision with that content_id. Check it "
+                       "matches the one in your submission response.",
+                       content_id=content_id)
+
+    # creator_id comes from the original decision: the caller isn't asked for it.
+    audit.log_appeal(content_id=content_id,
+                     creator_id=decision["creator_id"],
+                     reasoning=reasoning)
     return jsonify({
-        "error": "not_implemented",
-        "message": "POST /appeal isn't built yet — see the TODO in app.py.",
-        "you_sent": payload,
-    }), 501
+        "content_id": content_id,
+        "status": "under_review",
+        "message": ("Your appeal is recorded and a person will read it. "
+                    "Nothing has been re-scored, and the original decision "
+                    "stays in the record."),
+    })
 
 
 # ── Already works ─────────────────────────────────────────────────────────────

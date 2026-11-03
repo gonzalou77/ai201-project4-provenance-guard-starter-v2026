@@ -383,25 +383,86 @@ writer was shown.
 
 ## Rate Limiting
 
-**My limits:** ___ per minute, ___ per day
+**My limits:** 5 per minute, 60 per day, on `POST /submit` only
+(`config.py::RATE_LIMIT_PER_MINUTE` and `RATE_LIMIT_PER_DAY`).
 
-**Why those numbers and not others:**
-<!-- Think about two people: a real writer submitting their own work a few
-     times an hour, and a script sending a thousand variations to map your
-     thresholds. Your numbers have to be liveable for the first and hostile to
-     the second. -->
+**Why those numbers and not others:** A real writer revising a piece
+resubmits at most once a minute or so, because each edit takes longer than a
+scoring run, so 5 a minute is well above anything an honest person does and 60
+a day is a heavy working day. Each submission also costs about a second of
+model time on this machine, so the limit protects the service as well as the
+thresholds. I'm honest that it is not very hostile to a script that wants to
+map my thresholds: finding the score boundary of one text by repeatedly editing
+it takes a few dozen probes, and 60 a day is enough for that. What it does is
+make a *flood* expensive, not a patient probe, and it can't stop a script that
+changes its `creator_id` (below).
 
-**What a caller counts as:** <!-- per address, or per creator_id? They fail
-differently — one script can look like a thousand callers, and one household
-can look like one. -->
+**What a caller counts as:** A `creator_id`, falling back to the caller's
+address only when the request has no usable `creator_id`
+(`app.py::rate_limit_key`). I kept that, rather than limiting by address,
+because on my laptop every caller is `127.0.0.1`, so a per-address limit would
+trip on the unit's own attack set and evaluation runs, which each use a fresh
+`creator_id` per item. The cost is real and I saw it in the run below: the
+three later submissions came from the same address as the flood and were not
+limited at all, because they used different `creator_id`s. **One script
+rotating through `creator_id`s looks like a crowd of separate people and is
+never limited.** An address-based limit would catch that and wrongly lump a
+shared household or school together. Neither is right; this one is easier to
+test and weaker against an attacker.
 
 **The run of status codes when I pushed past it:**
 
-<!-- python run_attacks.py --flood 15 -->
+`python run_attacks.py --flood 15 --url http://127.0.0.1:5055` (one
+`creator_id`, fifteen submissions in a burst). The first five went through and
+the next ten were refused. Saved as
+[results/flood_2026-11-02_1936.md](results/flood_2026-11-02_1936.md):
 
 ```
-
+200 200 200 200 200 429 429 429 429 429 429 429 429 429 429
 ```
+
+**The refusals are in the log.** After the flood, `GET /log` held all ten
+rejections beside the five decisions, so the burst is visible and not just an
+absence:
+
+```json
+{
+  "creator_id": "flood_tester",
+  "event": "rejected",
+  "limit": "5 per 1 minute",
+  "reason": "rate_limited",
+  "status": "rejected",
+  "timestamp": "2026-11-03T00:36:18+00:00"
+}
+```
+
+A request my own route refuses is logged the same way. A submission with no
+`text` produced:
+
+```json
+{
+  "creator_id": "demo-bad",
+  "event": "rejected",
+  "reason": "invalid_request",
+  "status": "rejected",
+  "timestamp": "2026-11-03T00:36:26+00:00"
+}
+```
+
+Across that session the log gained 19 entries: 8 decisions (5 from the flood
+and 3 more submissions), 10 `rate_limited` and 1 `invalid_request`.
+
+**Could someone reconstruct a decision from one entry without my code?**
+Mostly. A decision entry has all nine fields: timestamp, `content_id`,
+`creator_id`, `guess`, `model_score`, `style_score`, `combined_score`, `label`
+and `status`. From those a reader can see both signals, the number they
+produced and the sentence the writer got, and check that the label matches the
+score. Three things are *not* in it: the text that was scored (nothing links an
+entry to its input except the `content_id` in the response), the thresholds and
+weights in force at the time (if I change `config.py`, old entries can no
+longer be explained by the new numbers), and whether the 0.60 split cap fired.
+I left the entry shape alone because unit 8 compares runs from before and after
+my change, and a different shape would make them incomparable.
 
 ---
 

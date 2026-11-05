@@ -125,6 +125,7 @@ def main():
                         "confidence": payload.get("confidence"),
                         "model_score": payload.get("model_score"),
                         "style_score": payload.get("style_score"),
+                        "combined_score": payload.get("combined_score"),
                         "label": payload.get("label"),
                         "sent": preview,
                     })

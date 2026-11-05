@@ -378,6 +378,46 @@ writer was shown.
   switched to running my own test server on a different port and stopping
   only that one.
 
+**Moment 3 (unit 8): the test scenarios, and writing that isn't mine**
+
+- *What I asked for:* Scenarios for my five criteria, including ten pieces of my
+  own writing for criterion 1.
+- *What came back:* `scenarios.py`, a new `eval_checks.py` for the two criteria
+  that need more than sending text (the appeal and bad-input checks), and fifteen
+  pieces of "human" writing that the AI wrote itself, imitating plain and
+  distinctive writers. I had given it none of my writing.
+- *What I changed:* I made the stand-ins impossible to miss: a warning at the top
+  of `scenarios.py`, a bold note at the top of the Run Log, and a line in What's
+  Still Broken saying my criterion 1 verdict describes imitations of human writing.
+  The step I still have to do myself is paste in ten real pieces and re-run.
+
+**Moment 4 (unit 8): the diagnoses**
+
+- *What I asked for:* A stage and a mechanism for every miss and every broken
+  attack.
+- *What came back:* A confident draft that read well. Checking it against the data
+  turned up errors: it said the PI02 prefix was 21 words (it's 15), counted eleven
+  things to explain (ten), gave the AI pieces' type-token range as 0.88 to 0.98
+  (0.86 to 0.98), and left three of the nine "unsure" pieces unexplained. Its
+  first guess for PI02 was that the injected instruction itself did something. A
+  direct test showed it didn't: the essay alone scores perplexity 22, the same
+  essay behind a prefix of random letters scores 119.
+- *What I changed:* I fixed every number, explained the three missing pieces, and
+  rewrote PI02 and EV07 around what the ablations showed (a high-perplexity
+  prefix, and my own one-sentence rule) instead of the first guess.
+
+**Moment 5 (unit 8): choosing the improvement**
+
+- *What I asked for:* One change that follows from the diagnosis.
+- *What came back:* Before changing anything, an offline test of four candidates
+  on the texts I had already scored. Every one traded false accusations against
+  detections, and only moving the AI line to 0.90 got false accusations to zero.
+- *What I changed:* I took the 0.90 change, but wrote down what the offline test
+  also showed: I picked it by looking at the same texts I then tested on, the dog
+  paragraph at 0.9091 is still accused, and the AI label now barely fires. I
+  declined to combine it with a second change so the before and after would stay
+  readable.
+
 <!-- ═══════════════════════ UNIT 8 — THE TEST ═══════════════════════ -->
 
 ---
@@ -1130,17 +1170,62 @@ are different three, and I bought the one I care most about with the detector.
 
 ## What's Still Broken
 
-<!-- For each attack still getting through and each criterion still missed:
-     what you'd do, and why you stopped. -->
+After the improvement the service has 4 broken attacks out of 56 and two
+criteria missed (2 and 3). Criterion 1 is met, but only on stand-in writing.
+None of what follows is for lack of time. I stopped because the brief asks for
+one change, and each of these fixes moves many scores at once, so making it
+would have muddied the before-and-after comparison the unit is for. The two
+that need something I don't have (real writing, a new signal) say so.
 
+**Attacks still getting through**
 
+| What | What I'd do | Why I stopped |
+|---|---|---|
+| **EV02**: one-word sentences make AI text look lumpy (combined 0.324, labelled `human`) | Ignore sentences under three words when measuring spread, or use the median instead of stdev over mean, so "Really." can't buy variety. | It changes `style_score` for every input, so it needs its own before and after and a re-run of the plain-writing set. One change per unit. |
+| **EV07**: punctuation padding in a single spliced sentence (0.344, `human`) | Remove my one-sentence rule: a text with fewer than two sentences gets a neutral style score of 0.5, instead of dropping spread and letting punctuation carry 60%. Also cap how far punctuation alone can move the score. | Same: it changes the style score for any short input. It's the cheapest of the four to fix and the one I'd do first. |
+| **PI02**: a junk prefix drags average perplexity down (0.193, `human`) | Score the text in chunks and use the most AI-like or the median chunk, so a few surprising tokens at the front can't set the whole average. | It risks more false positives: a person with one predictable paragraph among varied ones would start to look AI, which is the error I'm trying to avoid. I'd need to re-run the plain-writing set to know. |
+| **EV05**: heavy human editing of AI text (0.297, `human`) | Nothing I can code. Neither signal can see where a draft started, and heavily rewritten text is arguably human-influenced, so a `human` label isn't clearly wrong. I'd document it as a limit. | It is a limit of the approach, not unfinished work. |
+
+**Held, but only weakly.** EV01, EV03, EV04, EV06, EV09 and now EV10 all come
+back `unsure`, so nothing flags them. That is the cost of the trade below, not a
+separate bug. Catching them needs a signal that separates plain human writing from
+AI text, which is the next item.
+
+**Criteria still missed**
+
+| What | What I'd do | Why I stopped |
+|---|---|---|
+| **Criterion 2**: 0 of 5 AI pieces labelled `ai`, against at least 3 | Add a third signal that tells plain human writing from AI. I have one guess I have *not* tested: the AI pieces lean on stock connectives ("furthermore", "additionally", "significantly") that plain writers rarely use. | Under the two signals I have, criteria 1 and 2 can't both be met: with the AI line at 0.90, nothing reaches it, and at 0.75 plain writers are accused. A third signal needs a real labelled corpus, and I'd be fitting it to 45 texts. I'm leaving the target as written. |
+| **Criterion 3**: 16 of 20 `unsure`, against at most 8 | The same third signal. Separately, signal one's midpoint of 45 puts ordinary human prose at 0.4 to 0.6, so recalibrating it on real human writing might pull ordinary prose under the 0.35 line. | No real corpus, and perplexity overlaps between plain human and AI text on these short pieces, so recalibrating alone probably isn't enough. |
+| **Criterion 1** is met only on stand-ins | Paste ten of your own pieces into `scenarios.py::MY_WRITING` and re-run `run_eval.py` and `eval_checks.py`. If any plain piece scores 0.90 or more it will be accused. | I don't have your writing. It needs you. |
+
+**Not an attack or a criterion, but still wrong**
+
+- **Some plain writers are still accused.** The dog-walk paragraph in the Sample
+  Run scores 0.9091 and gets the AI label under the 0.90 line. No threshold fixes it
+  without removing the AI label altogether. What I'd do: never show the AI label
+  without a person having looked first, so a high-confidence AI result goes to
+  review and the writer sees `unsure`. I stopped because that changes the product
+  and not the scoring.
+- **An appeal only records.** Nothing reads it, and the label the writer sees
+  doesn't change. It's the only thing between a wrong accusation and nothing at all,
+  so in a real deployment I'd build it first: a status the writer can look up, shown
+  beside the label, and a reviewer who can set the outcome. I stopped because the
+  brief for this unit didn't ask for it.
+- **The rate limit counts per `creator_id`, so one script that rotates ids is never
+  limited** (shown in the flood run). I'd add a second, generous per-address limit.
+  I stopped because on a laptop every caller shares one address, so it would have
+  tripped the unit's own attack and eval runs; it belongs to a real deployment.
 
 **The trade I'd make if this ran for real:**
 
-<!-- Two sentences. Fewer wrong accusations means more AI text getting through.
-     Say which way you'd go and WHO PAYS FOR IT. -->
-
-
+I'd keep the wide unsure band and accept more AI text getting through, because a
+wrong accusation lands on one named person who has to prove they wrote their own
+work, while a missed detection costs the site a little. The people who pay for it
+are everyone else (honest writers competing against undetected AI text, and
+whoever reviews the unsure pile, which was 16 of 20 test pieces), and I'd say
+plainly that at 0.90 this stops being an AI detector and becomes a tool that only
+clears writing that is obviously human.
 
 <!-- ═════════════════════════════════════════════════════════════════════
 

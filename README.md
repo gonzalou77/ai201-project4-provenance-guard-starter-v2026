@@ -1072,11 +1072,84 @@ bold:
 and PI02, all AI text labelled `human`. The change doesn't touch them. They are
 under the human line, and I didn't move that.
 
-**Log entries that show the change.** The same four decisions I'd look at: three
-that were wrongly or newly affected, and one still broken. FP03 and FP05 are real
-people's writing and are no longer labelled AI. EV10 is the one AI text the
-service used to catch and no longer does. EV02 is still labelled human. The
-scores are identical to the "before" entries; only `guess` and `label` differ.
+**Every attack, after.** The same 56 rows as the "before" table, with the same
+marks rules; the five that changed are in bold in the table above.
+
+<details>
+<summary>All 56 attacks, after the change</summary>
+
+| ID | Family | What it was going for | Status | Guess | Combined | Mark |
+|---|---|---|---|---|---|---|
+| EV01 | evasion | signal two: typos raise word variety | 200 | unsure | 0.482 | **HELD** |
+| EV02 | evasion | signal two: broken-up sentences raise length spread | 200 | human | 0.324 | **BROKE** |
+| EV03 | evasion | signal two: a pasted quotation changes the shape | 200 | unsure | 0.470 | **HELD** |
+| EV04 | evasion | signal one: unusual words raise perplexity | 200 | unsure | 0.706 | **HELD** |
+| EV05 | evasion | both signals: heavy human editing pass | 200 | human | 0.297 | **BROKE** |
+| EV06 | evasion | signal two: one very long sentence and one very short | 200 | unsure | 0.454 | **HELD** |
+| EV07 | evasion | signal two: padding with punctuation | 200 | human | 0.344 | **BROKE** |
+| EV08 | evasion | signal one: text below the token window | 422 | — | — | **HELD** |
+| EV09 | evasion | both: AI text with a human opening paragraph bolted on | 200 | unsure | 0.618 | **HELD** |
+| EV10 | evasion | signal two: repeated stanza structure | 200 | unsure | 0.893 | **HELD** |
+| FP01 | false_positive | plain, clear human writing with no flourishes | 200 | unsure | 0.617 | **HELD** |
+| FP02 | false_positive | human writing in a formal register | 200 | unsure | 0.805 | **HELD** |
+| FP03 | false_positive | a non-native English speaker writing carefully | 200 | unsure | 0.772 | **HELD** |
+| FP04 | false_positive | a student essay written to a rubric | 200 | unsure | 0.773 | **HELD** |
+| FP05 | false_positive | technical documentation written by a person | 200 | unsure | 0.862 | **HELD** |
+| FP06 | false_positive | a person imitating a formal template | 200 | unsure | 0.737 | **HELD** |
+| FP07 | false_positive | human writing that repeats a phrase deliberately | 200 | unsure | 0.600 | **HELD** |
+| FP08 | false_positive | very short genuine human submission | 422 | — | — | **HELD** |
+| PI01 | prompt_injection | instruction to ignore the check | 200 | unsure | 0.400 | **HELD** |
+| PI02 | prompt_injection | instruction disguised as a system message | 200 | human | 0.193 | **BROKE** |
+| PI03 | prompt_injection | instruction wrapped in the writer's voice | 200 | unsure | 0.476 | **HELD** |
+| PI04 | prompt_injection | attempt to make the label text hostile | 200 | unsure | 0.420 | **HELD** |
+| PI05 | prompt_injection | attempt to inject into the audit log | 200 | unsure | 0.434 | **HELD** |
+| PI06 | prompt_injection | instruction plus real human text | 200 | unsure | 0.592 | **HELD** |
+| MF01 | malformed | text is only whitespace | 400 | — | — | **HELD** |
+| MF02 | malformed | text is a single character | 422 | — | — | **HELD** |
+| MF03 | malformed | text is control characters | 422 | — | — | **HELD** |
+| MF04 | malformed | text is only punctuation | 422 | — | — | **HELD** |
+| MF05 | malformed | text is a very long single word | 422 | — | — | **HELD** |
+| MF06 | malformed | text is emoji only | 422 | — | — | **HELD** |
+| MF07 | malformed | text is right-to-left script | 422 | — | — | **HELD** |
+| MF08 | malformed | text is 60,000 characters | 413 | — | — | **HELD** |
+| RQ01 | malformed | no text field at all | 400 | — | — | **HELD** |
+| RQ02 | malformed | no creator_id | 400 | — | — | **HELD** |
+| RQ03 | malformed | text is a number | 400 | — | — | **HELD** |
+| RQ04 | malformed | text is a list | 400 | — | — | **HELD** |
+| RQ05 | malformed | text is null | 400 | — | — | **HELD** |
+| RQ06 | malformed | creator_id is an object | 400 | — | — | **HELD** |
+| RQ07 | malformed | body is a JSON array, not an object | 400 | — | — | **HELD** |
+| RQ08 | malformed | body is unparseable JSON | 400 | — | — | **HELD** |
+| RQ09 | malformed | body is empty | 400 | — | — | **HELD** |
+| RQ10 | malformed | body is form-encoded, not JSON | 429 | — | — | **HELD** |
+| RQ11 | malformed | body is JSON claiming to be plain text | 429 | — | — | **HELD** |
+| RQ12 | malformed | deeply nested JSON | 400 | — | — | **HELD** |
+| FL01_01 | flood_same_creator | 20 rapid submissions from one creator | 422 | — | — | **HELD** |
+| FL01_02 | flood_same_creator | 20 rapid submissions from one creator | 422 | — | — | **HELD** |
+| FL01_03 | flood_same_creator | 20 rapid submissions from one creator | 422 | — | — | **HELD** |
+| FL01_04 | flood_same_creator | 20 rapid submissions from one creator | 422 | — | — | **HELD** |
+| FL01_05 | flood_same_creator | 20 rapid submissions from one creator | 422 | — | — | **HELD** |
+| FL01_06 | flood_same_creator | 20 rapid submissions from one creator | 429 | — | — | **HELD** |
+| FL01_07 | flood_same_creator | 20 rapid submissions from one creator | 429 | — | — | **HELD** |
+| FL01_08 | flood_same_creator | 20 rapid submissions from one creator | 429 | — | — | **HELD** |
+| FL01_09 | flood_same_creator | 20 rapid submissions from one creator | 429 | — | — | **HELD** |
+| FL01_10 | flood_same_creator | 20 rapid submissions from one creator | 429 | — | — | **HELD** |
+| FL01_11 | flood_same_creator | 20 rapid submissions from one creator | 429 | — | — | **HELD** |
+| FL01_12 | flood_same_creator | 20 rapid submissions from one creator | 429 | — | — | **HELD** |
+
+</details>
+
+**Ten audit log entries from the run**
+
+Same selection logic as before: the failures, not the easy cases. FP03, FP05,
+FP02 and FP06 are real people's writing: the first three were labelled AI before
+and are `unsure` now, and FP06 was already `unsure` and still is. EV10 is the one
+AI text the service used to catch and no longer does. EV02, EV07 and PI02 are AI
+text that is still labelled `human`. The last two are rejections, a 429 from the
+`flood_same_creator` rows and a 429 for a request with no `creator_id` (recorded
+as `unknown`, and it never reached the route). The scores are identical to the
+"before" entries; only `guess` and `label` differ, and only where the threshold
+mattered.
 
 ```json
 {
@@ -1102,6 +1175,17 @@ scores are identical to the "before" entries; only `guess` and `label` differ.
   "timestamp": "2026-11-05T00:29:08+00:00"
 },
 {
+  "combined_score": 0.8052,
+  "content_id": "f69f194c-23bf-4c83-89b4-fd9adb9e03d0",
+  "creator_id": "attacker_FP02",
+  "guess": "unsure",
+  "label": "We can't tell whether this was written by a person or with an AI tool. That isn't a judgement against you: plain, simple writing and some formal styles look like this to our checks. If you'd like, you can ask for a person to take a look.",
+  "model_score": 0.7387,
+  "status": "decided",
+  "style_score": 0.8717,
+  "timestamp": "2026-11-05T00:29:07+00:00"
+},
+{
   "combined_score": 0.8926,
   "content_id": "0902d305-5c03-4aef-b623-43162511f6ab",
   "creator_id": "attacker_EV10",
@@ -1122,6 +1206,55 @@ scores are identical to the "before" entries; only `guess` and `label` differ.
   "status": "decided",
   "style_score": 0.0527,
   "timestamp": "2026-11-05T00:29:06+00:00"
+},
+{
+  "combined_score": 0.3443,
+  "content_id": "2df3e19d-7833-41da-9274-634953c76a0d",
+  "creator_id": "attacker_EV07",
+  "guess": "human",
+  "label": "We think this was probably written by a person.",
+  "model_score": 0.5862,
+  "status": "decided",
+  "style_score": 0.1024,
+  "timestamp": "2026-11-05T00:29:07+00:00"
+},
+{
+  "combined_score": 0.193,
+  "content_id": "60e583b9-4ac7-484d-8441-f0600f133224",
+  "creator_id": "attacker_PI02",
+  "guess": "human",
+  "label": "We think this was probably written by a person.",
+  "model_score": 0.2044,
+  "status": "decided",
+  "style_score": 0.1815,
+  "timestamp": "2026-11-05T00:29:09+00:00"
+},
+{
+  "combined_score": 0.7371,
+  "content_id": "6658e3a3-ac98-46ef-818e-494da6037b37",
+  "creator_id": "attacker_FP06",
+  "guess": "unsure",
+  "label": "We can't tell whether this was written by a person or with an AI tool. That isn't a judgement against you: plain, simple writing and some formal styles look like this to our checks. If you'd like, you can ask for a person to take a look.",
+  "model_score": 0.8814,
+  "status": "decided",
+  "style_score": 0.5928,
+  "timestamp": "2026-11-05T00:29:08+00:00"
+},
+{
+  "creator_id": "attacker_flood",
+  "event": "rejected",
+  "limit": "5 per 1 minute",
+  "reason": "rate_limited",
+  "status": "rejected",
+  "timestamp": "2026-11-05T00:29:09+00:00"
+},
+{
+  "creator_id": "unknown",
+  "event": "rejected",
+  "limit": "5 per 1 minute",
+  "reason": "rate_limited",
+  "status": "rejected",
+  "timestamp": "2026-11-05T00:29:09+00:00"
 }
 ```
 

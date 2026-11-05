@@ -1,0 +1,106 @@
+[
+  {
+    "combined_score": 0.7725,
+    "content_id": "087ad1ea-18ce-4114-8f63-6d5d7769abe7",
+    "creator_id": "attacker_FP03",
+    "guess": "unsure",
+    "label": "We can't tell whether this was written by a person or with an AI tool. That isn't a judgement against you: plain, simple writing and some formal styles look like this to our checks. If you'd like, you can ask for a person to take a look.",
+    "model_score": 0.8051,
+    "status": "decided",
+    "style_score": 0.7398,
+    "timestamp": "2026-11-05T00:29:08+00:00"
+  },
+  {
+    "combined_score": 0.8618,
+    "content_id": "e7d9d6f4-8a6b-4789-9323-648329b5c7a0",
+    "creator_id": "attacker_FP05",
+    "guess": "unsure",
+    "label": "We can't tell whether this was written by a person or with an AI tool. That isn't a judgement against you: plain, simple writing and some formal styles look like this to our checks. If you'd like, you can ask for a person to take a look.",
+    "model_score": 0.8005,
+    "status": "decided",
+    "style_score": 0.9231,
+    "timestamp": "2026-11-05T00:29:08+00:00"
+  },
+  {
+    "combined_score": 0.8052,
+    "content_id": "f69f194c-23bf-4c83-89b4-fd9adb9e03d0",
+    "creator_id": "attacker_FP02",
+    "guess": "unsure",
+    "label": "We can't tell whether this was written by a person or with an AI tool. That isn't a judgement against you: plain, simple writing and some formal styles look like this to our checks. If you'd like, you can ask for a person to take a look.",
+    "model_score": 0.7387,
+    "status": "decided",
+    "style_score": 0.8717,
+    "timestamp": "2026-11-05T00:29:07+00:00"
+  },
+  {
+    "combined_score": 0.8926,
+    "content_id": "0902d305-5c03-4aef-b623-43162511f6ab",
+    "creator_id": "attacker_EV10",
+    "guess": "unsure",
+    "label": "We can't tell whether this was written by a person or with an AI tool. That isn't a judgement against you: plain, simple writing and some formal styles look like this to our checks. If you'd like, you can ask for a person to take a look.",
+    "model_score": 0.9792,
+    "status": "decided",
+    "style_score": 0.8061,
+    "timestamp": "2026-11-05T00:29:07+00:00"
+  },
+  {
+    "combined_score": 0.3235,
+    "content_id": "1f906e9e-0459-41ad-8222-77a4aa823712",
+    "creator_id": "attacker_EV02",
+    "guess": "human",
+    "label": "We think this was probably written by a person.",
+    "model_score": 0.5943,
+    "status": "decided",
+    "style_score": 0.0527,
+    "timestamp": "2026-11-05T00:29:06+00:00"
+  },
+  {
+    "combined_score": 0.3443,
+    "content_id": "2df3e19d-7833-41da-9274-634953c76a0d",
+    "creator_id": "attacker_EV07",
+    "guess": "human",
+    "label": "We think this was probably written by a person.",
+    "model_score": 0.5862,
+    "status": "decided",
+    "style_score": 0.1024,
+    "timestamp": "2026-11-05T00:29:07+00:00"
+  },
+  {
+    "combined_score": 0.193,
+    "content_id": "60e583b9-4ac7-484d-8441-f0600f133224",
+    "creator_id": "attacker_PI02",
+    "guess": "human",
+    "label": "We think this was probably written by a person.",
+    "model_score": 0.2044,
+    "status": "decided",
+    "style_score": 0.1815,
+    "timestamp": "2026-11-05T00:29:09+00:00"
+  },
+  {
+    "combined_score": 0.7371,
+    "content_id": "6658e3a3-ac98-46ef-818e-494da6037b37",
+    "creator_id": "attacker_FP06",
+    "guess": "unsure",
+    "label": "We can't tell whether this was written by a person or with an AI tool. That isn't a judgement against you: plain, simple writing and some formal styles look like this to our checks. If you'd like, you can ask for a person to take a look.",
+    "model_score": 0.8814,
+    "status": "decided",
+    "style_score": 0.5928,
+    "timestamp": "2026-11-05T00:29:08+00:00"
+  },
+  {
+    "creator_id": "attacker_flood",
+    "event": "rejected",
+    "limit": "5 per 1 minute",
+    "reason": "rate_limited",
+    "status": "rejected",
+    "timestamp": "2026-11-05T00:29:09+00:00"
+  },
+  {
+    "creator_id": "unknown",
+    "event": "rejected",
+    "limit": "5 per 1 minute",
+    "reason": "rate_limited",
+    "status": "rejected",
+    "timestamp": "2026-11-05T00:29:09+00:00"
+  }
+]

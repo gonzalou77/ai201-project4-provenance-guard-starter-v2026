@@ -865,23 +865,87 @@ criteria 1 and 2 were `unsure` (3 own, 2 AI, 4 clear-human), against at most 8.
 ```
 
 
+**How I decided each verdict.** The target has to hold in every trial, and I
+read each number exactly as written. All three trials were identical, so no
+verdict depends on which run I look at.
+
+- **1. MISSED.** Target: 0 of 10 labelled AI. Result: 4 of 10 in all three
+  trials. Not close.
+- **2. MET.** Target: gap ≥ 0.30, at least 3 of 5 AI pieces labelled `ai`, none
+  labelled `human`. Result: 0.33, exactly 3 of 5, none, in all three trials.
+  Every part holds in every trial, so it is met, but by 0.03 and by the bare
+  minimum on the count, and only against distinctive human writing (and
+  stand-ins at that). Had the human set included the plain pieces from
+  criterion 1 it would have failed. I'm not calling it comfortable.
+- **3. MISSED.** Target: all three labels reachable *and* at most 8 of 20
+  `unsure`. The first half holds (3 of 3 in every trial). The second does not:
+  9 of 20 in every trial. The criterion has two parts and one fails, so it is
+  missed. "About 8" is not what I wrote.
+- **4. MET.** 10 of 10 real appeals and 5 of 5 unknown ids, in all three trials,
+  with the original log entry unchanged each time.
+- **5. MET.** 10 of 10 documented status and error code, 10 of 10 logged, no 5xx
+  and `/ping` still answering, in all three trials.
+
+**I did not revise any criterion.** All five could be measured and I got a
+number for each, so none was broken; criteria 1 and 3 were simply missed, and
+their targets stay as written. The criterion I'd tighten is **2**: its "clearly
+human" set should include plain, short-sentence writing, because that is the
+writer the service fails and the current set can't see it. That would be a new
+criterion, not a rewrite of the old one.
+
 **Diagnoses**
 
-<!-- For each miss AND each broken attack: the stage and the mechanism.
+Ten things to explain: the two missed criteria (1 and 3) and the eight broken
+attacks (EV02, EV05, EV07, FP02, FP03, FP04, FP05, PI02). Numbers below are from
+`results/verdicts_before.md`, `results/attack_run_2026-11-04_1912_before.md`
+and a breakdown of each signal into its parts that I ran on the same inputs. The
+two mechanisms I wasn't sure of, PI02 and EV07, I tested directly rather than
+assume.
 
-     Your service has five stages: the route, signal one, signal two, the
-     combining rule, and the label mapping.
+| What | Stage | Mechanism |
+|---|---|---|
+| **Criterion 1**: own1 to own4 labelled AI (combined 0.869, 0.801, 0.805, 0.899) | Signal one **and** signal two, together | All four are plain, short-sentence writing. Signal one: perplexity 17.6 to 22.7, far under its midpoint of 45, so `model_score` 0.75 to 0.82. Signal two: sentence-length spread 0.11 to 0.25 (even sentences) and **zero** distinctive punctuation, so spread scales to 0.90 to 1.00 and punctuation to a flat 1.00, giving `style_score` 0.80 to 0.98. Both read "common words in tidy, even sentences" as machine-made. The combining rule averages two agreeing wrong answers and can't catch it. |
+| **FP02, FP03, FP04, FP05**: formal prose, second-language writer, rubric essay, technical documentation, all labelled AI (0.805, 0.772, 0.773, 0.862) | Signal one **and** signal two, together | The same mechanism. Perplexity 16.5 to 23.5 (`model_score` 0.74 to 0.83), spread 0.24 to 0.37, zero distinctive punctuation, `style_score` 0.71 to 0.92. FP05 is the highest because documentation also repeats its vocabulary: type-token ratio 0.64, which the style signal scales to 1.00. |
+| **EV02**: broken-up sentences, AI text labelled human (0.324) | Signal two, with the combining rule | The text has 13 sentences, six of them one word ("Really."). Spread counts words per sentence, so one-word sentences between 10 to 15-word ones make a regular text look lumpy: spread 0.85, which scales to 0.00. Type-token ratio is 0.90, also 0.00. `style_score` 0.053. Signal one was only half fooled (perplexity 35.4, `model_score` 0.594), but the rule gives the two equal weight, so 0.053 pulls 0.594 down to 0.324, just under the 0.35 human line. |
+| **EV07**: punctuation padding, AI text labelled human (0.344) | Signal two, made worse by a rule of mine | The text is *one* sentence, spliced with semicolons and ", moreover,". With fewer than two sentences my `style_signal` drops the spread measure, so punctuation becomes 60% of the style score (0.3 of the remaining 0.5). Padding gets 7.2 distinctive marks per 100 words, which scales to 0.00, so `style_score` is 0.102. Signal one said 0.586. Combined 0.344, which is 0.006 under the human line. |
+| **EV05**: heavy human editing, AI text labelled human (0.297) | Signal one and signal two | Perplexity 71.8 (`model_score` 0.321), spread 0.68 and type-token ratio 0.85 (`style_score` 0.273). Both signals measure surface, and a heavy rewrite changes the surface of both words and sentence shape. Neither can see where a draft started. I think this one is a limit of the approach rather than a bug in either signal. |
+| **PI02**: fake `SYSTEM:` instruction, AI text labelled human (0.193) | Signal one | **Tested.** The essay on its own scores perplexity 22.3, `model_score` 0.754. With the 15-word prefix in front it scores 105.2 and 0.204. The prefix alone is perplexity 536.7. A meaningless prefix of random letters gives nearly the same result (118.7, 0.175). So the injection never worked as an injection: my service doesn't read instructions. It worked as high-surprise padding, because perplexity is an average over every token and a few very surprising ones at the front drag the whole average. |
+| **Criterion 3**: 9 of 20 `unsure`, against at most 8 | Signal one's calibration, and the label mapping | Of the 9: four are ordinary-but-distinctive human stand-ins (hum2 to hum5, combined 0.351, 0.382, 0.530, 0.527), whose perplexity of 34 to 61 sits right at the `model_score` midpoint of 45, so signal one gives them 0.38 to 0.61. Human needs a combined score at or under 0.35, so both signals must say strongly human. hum2 misses by **0.001**. Two more sit within 0.03 of the AI line (own5 0.744, ai5 0.728). The last three are mid-range: own7 0.365, own10 0.426, and ai4 at 0.600, where the split cap fired (model 0.875, style 0.504) but the average of 0.69 was already unsure. The unsure band is 0.40 wide, so anything ordinary lands in it. |
 
-     Not a diagnosis:  "The evasion attacks got through."
-     A diagnosis:      "Four evasion inputs got through. All four had typos
-                        added to AI-generated text. My second signal measures
-                        word variety, and typos raise word variety — so it read
-                        them as more human. My combining rule weights that
-                        signal at 0.6, so it dragged the whole score down."
+**The pattern.** The rows reduce to three problems, not ten.
 
-     Look for a pattern. Five failures on one signal is one problem, not five. -->
+1. **Both signals measure ordinariness, so they share a blind spot.** This
+   is the cause of every wrongful accusation I measured: own1 to own4 and
+   FP02 to FP05, eight wrongful AI labels from one mechanism. Signal one calls
+   common words in short sentences predictable and signal two calls even
+   sentences uniform, and plain human writing is both. It is not a case of one
+   signal being bad: the signals fail *together*, so nothing downstream can fix
+   it. The plain pieces from criterion 1 average a combined 0.82; the five
+   AI-generated pieces average 0.75. Plain human writing scores *higher* than AI
+   text, so no threshold separates them.
+2. **Both signals are averages over the whole text, so inserted content
+   dilutes them.** EV02 (one-word sentences), EV07 (punctuation) and PI02 (a
+   junk prefix) each add something cheap to AI text and shift an average. The
+   attacker pays almost nothing and I pay with a wrong label. Signal two is
+   involved in 7 of the 8 broken attacks and signal one in 6; the combining
+   rule and the label mapping rescued none, and the human line at 0.35 is
+   exactly what let EV02 (0.324) and EV07 (0.344) through.
+3. **Three choices of mine made 1 and 2 worse.** (a) Distinctive punctuation
+   scales to 1.00 (maximum AI) for any text without it, which is every plain
+   piece *and* every AI piece, so it separates nothing between them and just
+   adds a flat 0.3 to the style score. (b) The one-sentence rule, which is
+   what let EV07 through. (c) The type-token bounds were fitted by eye to one
+   AI example whose vocabulary repeated (ratio 0.74). The five real
+   AI-generated pieces have ratios of 0.86 to 0.98, so that measure scores them
+   0.00 to 0.16 and votes *human* on AI text. Criterion 2's gap of 0.33
+   therefore rests on perplexity and sentence spread alone. Each of these is a
+   line I can point at, and I set them from seven inputs, as the earlier
+   section said.
 
-
+Short inputs make all of it noisier. The service accepts 20 words, and the
+test pieces are 45 to 55 words with three to eight sentences, so a spread built
+from three sentence lengths swings a lot (ai1 has a spread of 0.03, ai4 of 0.51,
+both AI).
 
 ---
 

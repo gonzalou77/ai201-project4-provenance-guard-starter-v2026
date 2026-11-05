@@ -95,7 +95,13 @@ HUMAN_THRESHOLD = 0.35
 # Raised from the starter's 0.65 (DESIGN.md, "The false positive"): calling a
 # real writer AI costs far more than missing some AI text. It stays above
 # SPLIT_CAP, so a split between the signals can never reach it.
-AI_THRESHOLD = 0.75
+#
+# Unit 8 improvement: 0.75 -> 0.90. The unit 8 diagnosis found plain human
+# writing scoring 0.80-0.90 and AI text 0.77-0.83, so nothing between those
+# separates them; this widens the unsure band until plain writing sits inside
+# it. The price is that almost nothing reaches the AI label now (README,
+# "The Improvement").
+AI_THRESHOLD = 0.90
 
 # ⚠️ One thing that catches people out in Milestone 5. A weighted average can
 # only land between its two inputs — so while `style_signal` is still the stub
